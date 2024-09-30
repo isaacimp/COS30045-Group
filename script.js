@@ -1,120 +1,145 @@
-let data = [];
-let hierarchy = ['state', 'area_of_expenditure', 'broad_source_of_funding'];
-let root;
-let current;
-
-function processData(data, levels) {
-    const nestedData = d3.nest();
-    levels.forEach(level => {
-        nestedData.key(d => d[level]);
-    });
-    nestedData.rollup(leaves => d3.sum(leaves, d => +d.real_expenditure_millions));
-
-    return d3.hierarchy({ values: nestedData.entries(data) }, d => d.values)
-        .sum(d => d.value)
-        .sort((a, b) => b.value - a.value);
-}
-
-function updateVisualization(node) {
-    const height = document.getElementById('chart').clientHeight;
-    const width = document.getElementById('chart').clientWidth;
-    //const height = 600;
-
-    d3.select('#chart').selectAll('*').remove();
-
-    const svg = d3.select('#chart')
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height);
-
-    const treemap = d3.treemap()
-        .size([width, height])
-        .paddingTop(28)
-        .paddingRight(7)
-        .paddingInner(3)
-        .round(true);
-
-    treemap(node);
-
-    const color = d3.scaleOrdinal(d3.schemeSet3);
-
-    const cell = svg.selectAll('g')
-        .data(node.children)
-        .enter().append('g')
-        .attr('transform', d => `translate(${d.x0},${d.y0})`);
-
-    cell.append('rect')
-        .attr('width', d => d.x1 - d.x0)
-        .attr('height', d => d.y1 - d.y0)
-        .attr('fill', d => color(d.data.key))
-
-    cell.append('rect')
-        .attr('width', d => d.x1 - d.x0)
-        .attr('height', d => d.y1 - d.y0)
-        .attr('fill', d => color(d.data.key))  
-        .attr('opacity', 0.5)  
-
-    
-    cell.append('text')
-        .attr('x', d => d.x1 - d.x0 - 4)
-        .attr('y', d => d.y1 - d.y0 - 4)
-        .text(d => `$${(d.value / 1000).toFixed(2)}`)
-        .attr('font-size', d => Math.min(24, (d.x1 - d.x0) / 5) + 'px')
-        .attr('fill', '#black')
-        .attr('text-anchor', 'end');
-
-    cell.append('text')
-        .attr('x', d => (d.x1 - d.x0) / 2)
-        .attr('y', d => (d.y1 - d.y0) / 2)
-        .attr('dy', '.35em') 
-        .attr('text-anchor', 'middle')  
-        .text(d => {
-            // show text if box width is greater than 50px
-            return (d.x1 - d.x0 > 50) ? d.data.key : '';
-        })
-        .style('font-size', function (d) {
-            const boxWidth = d.x1 - d.x0;
-            const boxHeight = d.y1 - d.y0;
-            return Math.max(10, Math.min(boxWidth / d.data.key.length, boxHeight / 3)) + 'px';
-        })
-        .attr('fill', '#000'); 
-
-    const tooltip = d3.select('#tooltip');
-
-    cell.on('mousemove', function (d) {
-        const [x, y] = d3.mouse(document.body);
-        tooltip.style('visibility', 'visible')
-            .style('left', x + 10 + 'px')
-            .style('top', y + 10 + 'px')
-            .html(`<strong>${d.data.key}</strong><br>Value: $${(d.value / 1000).toFixed(2)} billion`);
-    }).on('mouseout', function () {
-        tooltip.style('visibility', 'hidden');
+d3.csv("drug_use.csv").then(function (data) {
+    data.forEach(d => {
+        d.TIME_PERIOD = +d.TIME_PERIOD;
+        d.OBS_VALUE = +d.OBS_VALUE;
+        d.Pharmaceutical = d.Pharmaceutical;
     });
 
-    svg.append('text')
-        .attr('x', 4)
-        .attr('y', 18)
-        .text(node.data.key)
-        .attr('font-weight', 'bold')
-        .attr('font-size', 18);
-}
+    const margin = { top: 40, right: 30, bottom: 60, left: 70 },
+        width = 800 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
 
-// load dataset
-d3.csv('healthexpenditureaustralia_processed.csv').then(function (csvData) {
-    data = csvData;
-    root = processData(data, hierarchy);
-    current = root;
-    d3.select('#hierarchy-select').property('value', 'state').dispatch('change');
-    updateVisualization(root);
-}).catch(function (error) {
-    console.log('Error loading the CSV file:', error);
+    const svg = d3.select("#chart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .style("background-color", "#f4f4f9")
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const xScale = d3.scaleLinear()
+        .domain(d3.extent(data, d => d.TIME_PERIOD))
+        .range([0, width])
+        .nice();
+
+    const yScale = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.OBS_VALUE)])
+        .range([height, 0])
+        .nice();
+
+    svg.append("g")
+        .attr("class", "x-axis")
+        .attr("transform", `translate(0, ${height})`)
+        .call(d3.axisBottom(xScale));
+
+    svg.append("g")
+        .attr("class", "y-axis")
+        .call(d3.axisLeft(yScale));
+
+    // Adjusted X-axis label
+    svg.append("text")
+        .attr("text-anchor", "middle")
+        .attr("x", width / 2)
+        .attr("y", height + margin.bottom - 10)  // Moving it closer to the X-axis
+        .text("Year")
+        .style("font-size", "14px")
+        .style("fill", "#333");
+
+    // Adjusted Y-axis label
+    svg.append("text")
+        .attr("text-anchor", "middle")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -height / 2)  // Centering the Y-axis label
+        .attr("y", -margin.left + 20)  // Positioning it closer to the Y-axis
+        .text("Drug Usage (Defined daily doses)")
+        .style("font-size", "14px")
+        .style("fill", "#333");
+
+    const years = [...new Set(data.map(d => d.TIME_PERIOD))];
+    years.forEach(year => {
+        d3.select("#year-select").append("option")
+            .text(year)
+            .attr("value", year);
+    });
+
+    function updateDrugDropdown(selectedYear) {
+        const filteredData = selectedYear === "all" 
+            ? data 
+            : data.filter(d => d.TIME_PERIOD === +selectedYear);
+
+        const uniquePharmaceuticals = [...new Set(filteredData.map(d => d.Pharmaceutical))];
+
+        d3.select("#drug-select").selectAll("option").remove();
+        d3.select("#drug-select").append("option").text("All Pharmaceuticals").attr("value", "all");
+
+        uniquePharmaceuticals.forEach(drug => {
+            d3.select("#drug-select").append("option")
+                .text(drug)
+                .attr("value", drug);
+        });
+    }
+
+    function updateScatterPlot(selectedYear, selectedDrug) {
+        const filteredData = data.filter(d => {
+            return (selectedYear === "all" || d.TIME_PERIOD === +selectedYear) &&
+                (selectedDrug === "all" || d.Pharmaceutical === selectedDrug);
+        });
+
+        yScale.domain([0, d3.max(filteredData, d => d.OBS_VALUE)]).nice();
+
+        svg.select(".y-axis").transition().duration(500).call(d3.axisLeft(yScale));
+
+        const circles = svg.selectAll("circle").data(filteredData);
+
+        circles.exit().transition().duration(500).attr("r", 0).remove();
+
+        circles.enter()
+            .append("circle")
+            .merge(circles)
+            .transition().duration(500)
+            .attr("cx", d => xScale(d.TIME_PERIOD))
+            .attr("cy", d => yScale(d.OBS_VALUE))
+            .attr("r", 6)
+            .attr("fill", function(d, i) { 
+                const colors = ['#ff6f61', '#6b5b95', '#88b04b', '#f7cac9', '#92a8d1'];
+                return colors[i % colors.length]; 
+            });
+
+        svg.selectAll("circle")
+            .on("mouseover", function () {
+                d3.select(this)
+                    .transition()
+                    .duration(100)
+                    .attr("r", 10)
+                    .attr("fill", "yellow");
+            })
+            .on("mouseout", function () {
+                d3.select(this)
+                    .transition()
+                    .duration(100)
+                    .attr("r", 6)
+                    .attr("fill", function(d, i) { 
+                        const colors = ['#ff6f61', '#6b5b95', '#88b04b', '#f7cac9', '#92a8d1'];
+                        return colors[i % colors.length]; 
+                    });
+            });
+    }
+
+    updateDrugDropdown("all");
+
+    d3.select("#year-select").on("change", function () {
+        const selectedYear = d3.select(this).property("value");
+        updateDrugDropdown(selectedYear);
+
+        const selectedDrug = d3.select("#drug-select").property("value");
+        updateScatterPlot(selectedYear, selectedDrug);
+    });
+
+    d3.select("#drug-select").on("change", function () {
+        const selectedYear = d3.select("#year-select").property("value");
+        const selectedDrug = d3.select(this).property("value");
+        updateScatterPlot(selectedYear, selectedDrug);
+    });
+
+    updateScatterPlot("all", "all");
 });
-
-d3.select('#hierarchy-select').on('change', function () {
-    hierarchy = this.value.split(',');
-    root = processData(data, hierarchy);
-    current = root;
-    updateVisualization(root);
-});
-
-window.addEventListener('resize', () => updateVisualization(current));

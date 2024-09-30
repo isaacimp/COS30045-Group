@@ -7,30 +7,34 @@
     <meta name="description" content="Data Visualisation" />
     <meta name="keywords" content="HTML, CSS, D3" />
     <meta name="author" content="Isaac Morris-Perrott and Manseerat Singh" />
-    <title>Assignment 3 Website</title>
+    <title>Pharmaceutical Drug Usage - Scatter Plot</title>
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <h1>Health Expenditure Australia</h1>
+    <h1>Pharmaceutical Drug Usage</h1>
     <div>
-        <h5>Total Health spending in Australia (in Billions) from 1997 - 2011</h5>
-        <label for="hierarchy-select">Select Area of Interest:</label>
-        <select id="hierarchy-select">
-            <option value="state">State</option>
-            <option value="area_of_expenditure">Area</option>
-            <option value="broad_source_of_funding">Funding</option>
+        <h5>Visualize drug usage over time</h5>
+
+        <label for="year-select">Select Year:</label>
+        <select id="year-select">
+            <option value="all">All Years</option>
+        </select>
+
+        <label for="drug-select">Select Pharmaceutical:</label>
+        <select id="drug-select">
+            <option value="all">All Pharmaceuticals</option>
         </select>
     </div>
+
     <div id="chart"></div>
     <div id="tooltip" class="tooltip"></div>
 
+    <!-- Include the external script.js -->
     <script src="script.js"></script>
 
-
-    <footer style="color:grey">COS30045 Data Visualisation<br>
-        Isaac Morris-Perrott (104921105) and Manseerat Singh (104550677)</footer>
+    <footer>COS30045 Data Visualisation<br> Isaac Morris-Perrott (104921105) and Manseerat Singh (104550677)</footer>
 </body>
 
 </html>
